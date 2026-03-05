@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOVA Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #0f0f10;
+      --bg-card: #18181b;
+      --fg: #e4e4e7;
+      --muted: #71717a;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #27272a;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+
+    /* Grid Lines Background */
+    .grid-bg {
+      background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* Table */
+    .data-row { transition: background 0.2s; }
+    .data-row:hover { background: rgba(255,255,255,0.03); }
+
+    /* Status Badge */
+    .badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+    .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+    .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+    
+    /* Inputs */
+    .input-dark { background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 10px 14px; border-radius: 6px; width: 100%; }
+    .input-dark:focus { outline: none; border-color: var(--accent); }
+
+    /* Pulse Animation for Realtime */
+    .pulse-ring {
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 1; }
+      80%, 100% { transform: scale(2); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="grid-bg">
+
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 border-r border-[var(--border)] flex-shrink-0 hidden lg:flex flex-col bg-[var(--bg-card)]">
+      <div class="p-6 border-b border-[var(--border)]">
+        <h1 class="text-xl font-bold flex items-center gap-2">
+          NOVA<span class="text-[var(--accent)]">.</span> 
+          <span class="text-xs font-normal text-[var(--muted)] ml-auto">v2.0</span>
+        </h1>
+      </div>
+      <nav class="flex-1 p-4 space-y-1">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 text-[var(--fg)] bg-[var(--accent)]/10 border border-[var(--accent)]/30 font-medium">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+          Dashboard
+        </button>
+        <button onclick="switchTab('products')" id="nav-products" class="nav-btn w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 text-[var(--muted)] hover:bg-white/5 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          Products
+        </button>
+        <button onclick="switchTab('orders')" id="nav-orders" class="nav-btn w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 text-[var(--muted)] hover:bg-white/5 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+          Orders
+        </button>
+      </nav>
+      <div class="p-4 border-t border-[var(--border)]">
+        <div class="flex items-center gap-2 text-sm text-[var(--success)]">
+          <div class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </div>
+          System Online
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+      
+      <!-- Top Bar -->
+      <header class="sticky top-0 bg-[var(--bg)]/80 backdrop-blur-lg z-40 border-b border-[var(--border)] h-16 flex items-center justify-between px-6 lg:px-8">
+        <div class="flex items-center gap-4">
+          <button class="lg:hidden p-2 hover:bg-white/10 rounded" onclick="document.querySelector('aside').classList.toggle('hidden')">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          <h2 class="font-semibold text-lg" id="page-title">Dashboard</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="index.html" target="_blank" class="text-sm px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            View Store
+          </a>
+        </div>
+      </header>
+
+      <!-- Content Sections -->
+      <div class="p-6 lg:p-8">
+        
+        <!-- Dashboard Section -->
+        <section id="tab-dashboard">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div class="bg-[var(--bg-card)] border border-[var(--border)] p-6 rounded-xl">
+              <div class="text-sm text-[var(--muted)] mb-1">Total Revenue</div>
+              <div class="text-3xl font-bold mono text-[var(--success)]" id="stat-revenue">$0.00</div>
+            </div>
+            <div class="bg-[var(--bg-card)] border border-[var(--border)] p-6 rounded-xl">
+              <div class="text-sm text-[var(--muted)] mb-1">Total Orders</div>
+              <div class="text-3xl font-bold mono" id="stat-orders">0</div>
+            </div>
+            <div class="bg-[var(--bg-card)] border border-[var(--border)] p-6 rounded-xl">
+              <div class="text-sm text-[var(--muted)] mb-1">Products</div>
+              <div class="text-3xl font-bold mono" id="stat-products">0</div>
+            </div>
+            <div class="bg-[var(--bg-card)] border border-[var(--border)] p-6 rounded-xl">
+              <div class="text-sm text-[var(--muted)] mb-1">Low Stock</div>
+              <div class="text-3xl font-bold mono text-[var(--danger)]" id="stat-lowstock">0</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
+              <div class="p-5 border-b border-[var(--border)] flex justify-between items-center">
+                <h3 class="font-semibold">Recent Orders</h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-black/20">
+                    <tr class="text-[var(--muted)] text-left">
+                      <th class="p-4 font-medium">Order ID</th>
+                      <th class="p-4 font-medium">Total</th>
+                      <th class="p-4 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-orders">
+                    <!-- JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div class="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
+              <div class="p-5 border-b border-[var(--border)]">
+                <h3 class="font-semibold">Stock Alerts</h3>
+              </div>
+              <div class="p-4 space-y-3" id="dash-alerts">
+                <!-- JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Products Section -->
+        <section id="tab-products" class="hidden">
+          <div class="flex justify-between items-center mb-6">
+            <div></div>
+            <button onclick="openProductModal()" class="bg-[var(--accent)] text-white px-6 py-2.5 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Add Product
+            </button>
+          </div>
+
+          <div class="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-black/20">
+                <tr class="text-[var(--muted)] text-left">
+                  <th class="p-4 font-medium">Product Details</th>
+                  <th class="p-4 font-medium">Category</th>
+                  <th class="p-4 font-medium">Price</th>
+                  <th class="p-4 font-medium">Stock</th>
+                  <th class="p-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="products-table">
+                <!-- JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Orders Section -->
+        <section id="tab-orders" class="hidden">
+          <div class="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
+             <div class="p-5 border-b border-[var(--border)] flex justify-between items-center">
+                <h3 class="font-semibold">All Transactions</h3>
+                <select id="order-filter" class="input-dark w-48 text-sm" onchange="filterOrders()">
+                   <option value="all">All Status</option>
+                   <option value="pending">Pending</option>
+                   <option value="completed">Completed</option>
+                   <option value="cancelled">Cancelled</option>
+                </select>
+             </div>
+             <table class="w-full text-sm">
+              <thead class="bg-black/20">
+                <tr class="text-[var(--muted)] text-left">
+                  <th class="p-4 font-medium">Order ID</th>
+                  <th class="p-4 font-medium">Items</th>
+                  <th class="p-4 font-medium">Total</th>
+                  <th class="p-4 font-medium">Date</th>
+                  <th class="p-4 font-medium">Status</th>
+                  <th class="p-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table">
+                <!-- JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Product Modal -->
+  <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+    <div class="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-lg shadow-2xl">
+      <div class="p-6 border-b border-[var(--border)] flex justify-between items-center">
+        <h3 class="font-bold text-lg" id="modal-title">Add Product</h3>
+        <button onclick="closeModal()" class="text-[var(--muted)] hover:text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form onsubmit="saveProduct(event)" class="p-6 space-y-4">
+        <input type="hidden" id="prod-id">
+        <div>
+          <label class="block text-xs text-[var(--muted)] mb-1">Product Name</label>
+          <input type="text" id="prod-name" class="input-dark" required>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-[var(--muted)] mb-1">Price ($)</label>
+            <input type="number" step="0.01" id="prod-price" class="input-dark" required>
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted)] mb-1">Stock</label>
+            <input type="number" id="prod-stock" class="input-dark" required>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-[var(--muted)] mb-1">Category</label>
+          <input type="text" id="prod-category" class="input-dark" placeholder="e.g., Electronics">
+        </div>
+        <div>
+          <label class="block text-xs text-[var(--muted)] mb-1">Image URL</label>
+          <input type="text" id="prod-image" class="input-dark" placeholder="https://...">
+        </div>
+        <div>
+          <label class="block text-xs text-[var(--muted)] mb-1">Description</label>
+          <textarea id="prod-desc" class="input-dark h-24"></textarea>
+        </div>
+        <div class="pt-4 flex gap-3">
+          <button type="button" onclick="closeModal()" class="w-full py-2.5 border border-[var(--border)] rounded-lg font-medium hover:bg-white/5">Cancel</button>
+          <button type="submit" class="w-full py-2.5 bg-[var(--accent)] rounded-lg font-semibold hover:opacity-90">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ==============================
+    // SUPABASE CONFIG
+    // ==============================
+    const SUPABASE_URL = 'https://ipdzrgctpfugquditjyr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwZHpyZ2N0cGZ1Z3F1ZGl0anlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2OTgxOTcsImV4cCI6MjA4ODI3NDE5N30.Z1Hkyaip0zPK70ygSh3GxC6SIRjg9lbp-haAH2CJ8uA';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let products = [];
+    let orders = [];
+
+    // ==============================
+    // INITIALIZATION
+    // ==============================
+    async function init() {
+      // Fetch initial data
+      await Promise.all([fetchProducts(), fetchOrders()]);
+      
+      // Subscribe to realtime updates
+      subscribe();
+      
+      // Update UI periodically
+      setInterval(updateStats, 2000);
+    }
+
+    async function fetchProducts() {
+      const { data } = await db.from('products').select('*').order('created_at', { ascending: false });
+      products = data || [];
+      renderProducts();
+      updateStats();
+    }
+
+    async function fetchOrders() {
+      const { data } = await db.from('orders').select('*').order('created_at', { ascending: false });
+      orders = data || [];
+      renderOrders();
+      updateStats();
+    }
+
+    function subscribe() {
+      // Products Channel
+      db.channel('admin-products').on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        if (payload.eventType === 'INSERT') products.unshift(payload.new);
+        else if (payload.eventType === 'UPDATE') {
+          const i = products.findIndex(p => p.id === payload.new.id);
+          if (i > -1) products[i] = payload.new;
+        } else if (payload.eventType === 'DELETE') {
+          products = products.filter(p => p.id !== payload.old.id);
+        }
+        renderProducts();
+        updateStats();
+      }).subscribe();
+
+      // Orders Channel
+      db.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') orders.unshift(payload.new);
+        else if (payload.eventType === 'UPDATE') {
+          const i = orders.findIndex(p => p.id === payload.new.id);
+          if (i > -1) orders[i] = payload.new;
+        }
+        renderOrders();
+        updateStats();
+      }).subscribe();
+    }
+
+    // ==============================
+    // UI RENDERING
+    // ==============================
+    function updateStats() {
+      const revenue = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + parseFloat(o.total), 0);
+      const lowStock = products.filter(p => p.stock < 5).length;
+      
+      document.getElementById('stat-revenue').textContent = `$${revenue.toFixed(2)}`;
+      document.getElementById('stat-orders').textContent = orders.length;
+      document.getElementById('stat-products').textContent = products.length;
+      document.getElementById('stat-lowstock').textContent = lowStock;
+
+      // Dashboard Widgets
+      const recentOrders = orders.slice(0, 5);
+      document.getElementById('dash-orders').innerHTML = recentOrders.map(o => `
+        <tr class="border-t border-[var(--border)]">
+          <td class="p-4 mono text-xs">#${o.id.slice(0,8)}</td>
+          <td class="p-4">$${parseFloat(o.total).toFixed(2)}</td>
+          <td class="p-4"><span class="badge ${o.status === 'completed' ? 'badge-success' : 'badge-warning'}">${o.status}</span></td>
+        </tr>
+      `).join('') || '<tr><td colspan="3" class="p-4 text-center text-[var(--muted)]">No orders yet</td></tr>';
+
+      const alerts = products.filter(p => p.stock < 5);
+      document.getElementById('dash-alerts').innerHTML = alerts.map(p => `
+         <div class="flex items-center justify-between text-sm p-3 bg-black/20 rounded-lg">
+            <span class="font-medium">${p.name}</span>
+            <span class="mono text-[var(--danger)]">${p.stock} left</span>
+         </div>
+      `).join('') || '<div class="text-sm text-[var(--muted)] text-center py-4">All stocks are healthy</div>';
+    }
+
+    function renderProducts() {
+      document.getElementById('products-table').innerHTML = products.map(p => `
+        <tr class="border-t border-[var(--border)] data-row">
+          <td class="p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded bg-black/30 overflow-hidden flex-shrink-0">
+                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-xs text-[var(--muted)]">IMG</div>`}
+              </div>
+              <div>
+                <div class="font-medium">${p.name}</div>
+                <div class="text-xs text-[var(--muted)] mono truncate max-w-[200px]">${p.id}</div>
+              </div>
+            </div>
+          </td>
+          <td class="p-4 text-[var(--muted)]">${p.category || '-'}</td>
+          <td class="p-4 mono font-medium">$${parseFloat(p.price).toFixed(2)}</td>
+          <td class="p-4 mono"><span class="px-2 py-1 rounded ${p.stock < 5 ? 'bg-red-500/10 text-red-400' : 'text-[var(--success)]'}">${p.stock}</span></td>
+          <td class="p-4 text-right">
+            <button onclick='editProduct(${JSON.stringify(p)})' class="text-[var(--accent)] hover:underline mr-3 text-xs font-medium">Edit</button>
+            <button onclick="deleteProduct('${p.id}')" class="text-[var(--danger)] hover:underline text-xs font-medium">Delete</button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" class="p-10 text-center text-[var(--muted)]">No products found. Add one to start.</td></tr>';
+    }
+
+    function renderOrders() {
+      const filter = document.getElementById('order-filter').value;
+      let list = orders;
+      if (filter !== 'all') list = orders.filter(o => o.status === filter);
+
+      document.getElementById('orders-table').innerHTML = list.map(o => `
+        <tr class="border-t border-[var(--border)] data-row">
+          <td class="p-4 mono text-xs">#${o.id.slice(0,8)}</td>
+          <td class="p-4 text-[var(--muted)]">${o.items.length} items</td>
+          <td class="p-4 mono font-medium">$${parseFloat(o.total).toFixed(2)}</td>
+          <td class="p-4 text-xs text-[var(--muted)]">${new Date(o.created_at).toLocaleDateString()}</td>
+          <td class="p-4"><span class="badge ${o.status === 'completed' ? 'badge-success' : o.status === 'cancelled' ? 'badge-danger' : 'badge-warning'}">${o.status}</span></td>
+          <td class="p-4 text-right space-x-2">
+            <button onclick="updateOrderStatus('${o.id}', 'completed')" class="text-green-500 hover:underline text-xs">Complete</button>
+            <button onclick="updateOrderStatus('${o.id}', 'cancelled')" class="text-red-500 hover:underline text-xs">Cancel</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function filterOrders() { renderOrders(); }
+
+    // ==============================
+    // CRUD ACTIONS
+    // ==============================
+    function switchTab(tab) {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-'+tab).classList.remove('hidden');
+      
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+         btn.classList.remove('text-[var(--fg)]', 'bg-[var(--accent)]/10', 'border', 'border-[var(--accent)]/30');
+         btn.classList.add('text-[var(--muted)]');
+      });
+      
+      const activeBtn = document.getElementById('nav-'+tab);
+      activeBtn.classList.remove('text-[var(--muted)]');
+      activeBtn.classList.add('text-[var(--fg)]', 'bg-[var(--accent)]/10', 'border', 'border-[var(--accent)]/30');
+      
+      document.getElementById('page-title').textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
+    }
+
+    function openProductModal(data = null) {
+      const modal = document.getElementById('modal-overlay');
+      document.getElementById('modal-title').textContent = data ? 'Edit Product' : 'Add Product';
+      
+      // Reset form
+      document.getElementById('prod-id').value = data ? data.id : '';
+      document.getElementById('prod-name').value = data ? data.name : '';
+      document.getElementById('prod-price').value = data ? data.price : '';
+      document.getElementById('prod-stock').value = data ? data.stock : '';
+      document.getElementById('prod-category').value = data ? data.category : '';
+      document.getElementById('prod-image').value = data ? data.image_url : '';
+      document.getElementById('prod-desc').value = data ? data.description : '';
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+    
+    function closeModal() { 
+      document.getElementById('modal-overlay').classList.add('hidden'); 
+      document.getElementById('modal-overlay').classList.remove('flex');
+    }
+    
+    function editProduct(p) { openProductModal(p); }
+
+    async function saveProduct(e) {
+      e.preventDefault();
+      const id = document.getElementById('prod-id').value;
+      const payload = {
+        name: document.getElementById('prod-name').value,
+        price: parseFloat(document.getElementById('prod-price').value),
+        stock: parseInt(document.getElementById('prod-stock').value),
+        category: document.getElementById('prod-category').value,
+        image_url: document.getElementById('prod-image').value,
+        description: document.getElementById('prod-desc').value,
+      };
+
+      if (id) {
+        await db.from('products').update(payload).eq('id', id);
+      } else {
+        await db.from('products').insert([payload]);
+      }
+      
+      closeModal();
+    }
+
+    async function deleteProduct(id) {
+      if(confirm('Delete this product?')) {
+        await db.from('products').delete().eq('id', id);
+      }
+    }
+
+    async function updateOrderStatus(id, status) {
+      await db.from('orders').update({ status }).eq('id', id);
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+  </html>
